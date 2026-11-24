@@ -1,54 +1,44 @@
-import {
-  Box,
-  Container,
-  Typography,
-  Button,
-} from "@mui/material";
+import { Box, Container, Typography } from "@mui/material";
 
-import AutoStoriesOutlinedIcon from
-  "@mui/icons-material/AutoStoriesOutlined";
+import Header from "../components/Header";
+import Hero from "../components/Hero";
+import Footer from "../components/Footer";
 
 function Home() {
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ py: 10, textAlign: "center" }}>
-        <AutoStoriesOutlinedIcon
-          color="primary"
-          sx={{ fontSize: 64, mb: 2 }}
-        />
+    <>
+      <Header />
 
-        <Typography variant="h1" gutterBottom>
-          Operation Gift a Book
-        </Typography>
+      <Box component="main">
+        <Hero />
 
-        <Typography
-          variant="h6"
-          color="text.secondary"
-          gutterBottom
+        <Box
+          component="section"
+          id="dashboard"
+          sx={{ py: 8 }}
         >
-          Challenge Issued by Vickie Williams
-        </Typography>
+          <Container maxWidth="lg">
+            <Typography
+              variant="h2"
+              gutterBottom
+              sx={{ textAlign: "center" }}
+            >
+              Our Collective Impact
+            </Typography>
 
-        <Typography
-          sx={{
-            maxWidth: 650,
-            mx: "auto",
-            mb: 4,
-          }}
-        >
-          As a retired reading teacher, it is my goal to
-          continue to help establish a love of reading for
-          all ages. So, I have a challenge called Operation
-          Gift a Book. Over the course of this year, I
-          challenge each of you to gift or donate at least
-          one book to an outlet!
-        </Typography>
-
-        <Button variant="contained">
-          Log Book Donations
-        </Button>
+            <Typography
+              color="text.secondary"
+              sx={{ textAlign: "center" }}
+            >
+              See how our chapters are sharing the gift of
+              reading in their communities.
+            </Typography>
+          </Container>
+        </Box>
       </Box>
-    </Container>
+
+      <Footer />
+    </>
   );
 }
 
