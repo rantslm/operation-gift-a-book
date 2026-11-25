@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -19,6 +20,8 @@ import {
 
 import CloseIcon from "@mui/icons-material/Close";
 import { Turnstile } from "@marsidev/react-turnstile";
+
+
 
 const initialForm = {
   email: "",
@@ -44,6 +47,7 @@ function DonationDialog({
 
   const [turnstileToken, setTurnstileToken] = useState("");
 const [verificationError, setVerificationError] = useState("");
+const pendingDonationRef = useRef(null);
 
 const turnstileRef = useRef(null);
 const requestIdRef = useRef(null);
@@ -80,6 +84,7 @@ function resetVerification() {
   resetVerification();
 
   requestIdRef.current = null;
+  pendingDonationRef.current = null;
 
   onClose();
 }
@@ -135,6 +140,27 @@ async function handleSubmit(event) {
     return;
   }
 
+  const donationDetails = JSON.stringify({
+  ...form,
+  books,
+  amount,
+});
+
+if (
+  pendingDonationRef.current &&
+  pendingDonationRef.current !== donationDetails
+) {
+  setError(
+    "Your previous submission could not be confirmed. " +
+    "Please retry with the original information " +
+    "before making changes."
+  );
+
+  return;
+}
+
+pendingDonationRef.current = donationDetails;
+
   if (!requestIdRef.current) {
     requestIdRef.current = crypto.randomUUID();
   }
@@ -163,6 +189,7 @@ async function handleSubmit(event) {
     setForm(initialForm);
     setError("");
     requestIdRef.current = null;
+    pendingDonationRef.current = null;
 
     resetVerification();
     onClose();
