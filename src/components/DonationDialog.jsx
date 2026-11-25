@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 import {
   Alert,
@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 
 import CloseIcon from "@mui/icons-material/Close";
+import { Turnstile } from "@marsidev/react-turnstile";
 
 const initialForm = {
   email: "",
@@ -41,6 +42,13 @@ function DonationDialog({
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const [turnstileToken, setTurnstileToken] = useState("");
+const [verificationError, setVerificationError] = useState("");
+
+const turnstileRef = useRef(null);
+const requestIdRef = useRef(null);
+const submittingRef = useRef(false);
+
   const theme = useTheme();
   const fullScreen = useMediaQuery(
     theme.breakpoints.down("sm")
@@ -56,21 +64,30 @@ function DonationDialog({
 
     setError("");
   }
+function resetVerification() {
+  setTurnstileToken("");
+  setVerificationError("");
+  turnstileRef.current?.reset();
+}
 
   function handleClose() {
-  if (submitting) {
+  if (submittingRef.current) {
     return;
   }
 
   setForm(initialForm);
   setError("");
+  resetVerification();
+
+  requestIdRef.current = null;
+
   onClose();
 }
 
-  async function handleSubmit(event) {
+async function handleSubmit(event) {
   event.preventDefault();
 
-  if (submitting) {
+  if (submittingRef.current) {
     return;
   }
 
@@ -82,8 +99,10 @@ function DonationDialog({
   if (
     !Number.isSafeInteger(books) ||
     books < 0 ||
+    books > 1000000 ||
     !Number.isFinite(amount) ||
     amount < 0 ||
+    amount > 1000000 ||
     Math.abs(
       amount * 100 - Math.round(amount * 100)
     ) > 0.000001
@@ -109,6 +128,17 @@ function DonationDialog({
     return;
   }
 
+  if (!turnstileToken) {
+    setVerificationError(
+      "Please complete the security verification."
+    );
+    return;
+  }
+
+  if (!requestIdRef.current) {
+    requestIdRef.current = crypto.randomUUID();
+  }
+
   const donation = {
     ...form,
     email: form.email.trim(),
@@ -120,8 +150,11 @@ function DonationDialog({
     notes: form.notes.trim(),
     books,
     amount,
+    requestId: requestIdRef.current,
+    turnstileToken,
   };
 
+  submittingRef.current = true;
   setSubmitting(true);
 
   try {
@@ -129,12 +162,18 @@ function DonationDialog({
 
     setForm(initialForm);
     setError("");
+    requestIdRef.current = null;
+
+    resetVerification();
     onClose();
   } catch (error) {
     setError(
       error.message || "Unable to record your donation."
     );
+
+    resetVerification();
   } finally {
+    submittingRef.current = false;
     setSubmitting(false);
   }
 }
@@ -146,7 +185,6 @@ function DonationDialog({
       fullWidth
       maxWidth="sm"
       fullScreen={fullScreen}
-    disableEscapeKeyDown={submitting}
       aria-labelledby="donation-dialog-title"
       slotProps={{
     transition: {
@@ -311,6 +349,53 @@ function DonationDialog({
               disabled={submitting}
             />
 
+            <Box sx={{ mt: 1 }}>
+  {open && (
+    <Turnstile
+      ref={turnstileRef}
+      siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+      onSuccess={(token) => {
+        setTurnstileToken(token);
+        setVerificationError("");
+      }}
+      onExpire={() => {
+        setTurnstileToken("");
+      }}
+      onError={() => {
+        setTurnstileToken("");
+        setVerificationError(
+          "Security verification failed. Please try again."
+        );
+      }}
+      options={{
+        theme: "light",
+        size: "flexible",
+        action: "donate",
+        refreshExpired: "auto",
+      }}
+    />
+  )}
+
+  {verificationError && (
+    <Alert
+      severity="error"
+      sx={{ mt: 1 }}
+      action={
+        <Button
+          color="inherit"
+          size="small"
+          onClick={resetVerification}
+          disabled={submitting}
+        >
+          Retry
+        </Button>
+      }
+    >
+      {verificationError}
+    </Alert>
+  )}
+</Box>
+
             <Typography variant="body2" color="text.secondary">
               Your personal information will not appear
               on the public dashboard.
@@ -329,7 +414,7 @@ function DonationDialog({
   <Button
     type="submit"
     variant="contained"
-    disabled={submitting}
+    disabled={submitting || !turnstileToken}
     startIcon={
       submitting ? (
         <CircularProgress
