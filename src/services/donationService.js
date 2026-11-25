@@ -63,3 +63,24 @@ export function getDistrictStats(records = donations) {
     };
   });
 }
+
+export function getDistrictSpotlight(records = donations) {
+  const districtStats = getDistrictStats(records).filter(
+    (district) => district.id !== "Other"
+  );
+
+  const topByBooks = [...districtStats]
+    .filter((district) => district.totalBooks > 0)
+    .sort((a, b) => b.totalBooks - a.totalBooks)
+    .slice(0, 3);
+
+  const topByAmount = [...districtStats]
+    .filter((district) => district.totalAmount > 0)
+    .sort((a, b) => b.totalAmount - a.totalAmount)
+    .slice(0, 3);
+
+  return {
+    topByBooks,
+    topByAmount,
+  };
+}
