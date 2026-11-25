@@ -1,86 +1,57 @@
-import {
-  districts,
-  donationAvenues,
-  donations,
-} from "../data/mockData";
+const API_URL = import.meta.env.VITE_API_URL;
 
-export function getDistricts() {
-  return districts;
-}
+async function apiRequest(action, options = {}) {
+  if (!API_URL) {
+    throw new Error("API URL is not configured.");
+  }
 
-export function getDonationAvenues() {
-  return donationAvenues;
-}
+  const url = new URL(API_URL);
 
-export function getDonations() {
-  return donations;
-}
+  if (action) {
+    url.searchParams.set("action", action);
+  }
 
-export function getImpactSummary(records = donations) {
-  return {
-    totalBooks: records.reduce(
-      (total, donation) => total + donation.books,
-      0
-    ),
-
-    totalAmount: records.reduce(
-      (total, donation) => total + donation.amount,
-      0
-    ),
-
-    participatingDistricts: new Set(
-      records
-        .filter((donation) => donation.districtId !== "Other")
-        .map((donation) => donation.districtId)
-    ).size,
-
-    totalDonations: records.length,
-  };
-}
-
-export function getDistrictStats(records = donations) {
-  return districts.map((district) => {
-    const districtDonations = records.filter(
-      (donation) => donation.districtId === district.id
-    );
-
-    const summary = getImpactSummary(districtDonations);
-
-    const latestDonation = districtDonations.reduce(
-      (latest, donation) =>
-        !latest || donation.date > latest
-          ? donation.date
-          : latest,
-      null
-    );
-
-    return {
-      ...district,
-      totalBooks: summary.totalBooks,
-      totalAmount: summary.totalAmount,
-      totalDonations: summary.totalDonations,
-      latestDonation,
-    };
+  const response = await fetch(url.toString(), {
+    ...options,
+    redirect: "follow",
   });
+
+  if (!response.ok) {
+    throw new Error("Unable to connect to the server.");
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(
+      result.message || "Something went wrong."
+    );
+  }
+
+  return result;
 }
 
-export function getDistrictSpotlight(records = donations) {
-  const districtStats = getDistrictStats(records).filter(
-    (district) => district.id !== "Other"
-  );
+export async function getOptions() {
+  const result = await apiRequest("options");
+  return result.data;
+}
 
-  const topByBooks = [...districtStats]
-    .filter((district) => district.totalBooks > 0)
-    .sort((a, b) => b.totalBooks - a.totalBooks)
-    .slice(0, 3);
+export async function getDashboard() {
+  const result = await apiRequest("dashboard");
+  return result.data;
+}
 
-  const topByAmount = [...districtStats]
-    .filter((district) => district.totalAmount > 0)
-    .sort((a, b) => b.totalAmount - a.totalAmount)
-    .slice(0, 3);
+export async function submitDonation(donation) {
+  return apiRequest(null, {
+    method: "POST",
 
-  return {
-    topByBooks,
-    topByAmount,
-  };
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8",
+    },
+
+    body: JSON.stringify({
+      action: "donate",
+      data: donation,
+    }),
+  });
 }

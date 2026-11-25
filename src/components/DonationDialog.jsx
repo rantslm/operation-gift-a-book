@@ -19,11 +19,6 @@ import {
 
 import CloseIcon from "@mui/icons-material/Close";
 
-import {
-  getDistricts,
-  getDonationAvenues,
-} from "../services/donationService";
-
 const initialForm = {
   email: "",
   name: "",
@@ -35,17 +30,21 @@ const initialForm = {
   notes: "",
 };
 
-function DonationDialog({ open, onClose, onSubmit }) {
-  const [form, setForm] = useState(initialForm);
+function DonationDialog({
+  open,
+  onClose,
+  onExited,
+  onSubmit,
+  districts = [],
+  avenues = [],
+}) {  const [form, setForm] = useState(initialForm);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const theme = useTheme();
   const fullScreen = useMediaQuery(
     theme.breakpoints.down("sm")
   );
-
-  const districts = getDistricts();
-  const avenues = getDonationAvenues();
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -59,59 +58,86 @@ function DonationDialog({ open, onClose, onSubmit }) {
   }
 
   function handleClose() {
+  if (submitting) {
+    return;
+  }
+
+  setForm(initialForm);
+  setError("");
+  onClose();
+}
+
+  async function handleSubmit(event) {
+  event.preventDefault();
+
+  if (submitting) {
+    return;
+  }
+
+  setError("");
+
+  const books = Number(form.books || 0);
+  const amount = Number(form.amount || 0);
+
+  if (
+    !Number.isSafeInteger(books) ||
+    books < 0 ||
+    !Number.isFinite(amount) ||
+    amount < 0 ||
+    Math.abs(
+      amount * 100 - Math.round(amount * 100)
+    ) > 0.000001
+  ) {
+    setError("Please enter valid donation amounts.");
+    return;
+  }
+
+  if (books === 0 && amount === 0) {
+    setError(
+      "Please enter at least one book or a dollar amount."
+    );
+    return;
+  }
+
+  if (
+    form.districtId === "Other" &&
+    !form.otherDistrict.trim()
+  ) {
+    setError(
+      "Please specify your district or affiliation."
+    );
+    return;
+  }
+
+  const donation = {
+    ...form,
+    email: form.email.trim(),
+    name: form.name.trim(),
+    otherDistrict:
+      form.districtId === "Other"
+        ? form.otherDistrict.trim()
+        : "",
+    notes: form.notes.trim(),
+    books,
+    amount,
+  };
+
+  setSubmitting(true);
+
+  try {
+    await onSubmit(donation);
+
     setForm(initialForm);
     setError("");
     onClose();
+  } catch (error) {
+    setError(
+      error.message || "Unable to record your donation."
+    );
+  } finally {
+    setSubmitting(false);
   }
-
-  function handleSubmit(event) {
-    event.preventDefault();
-
-    const books = Number(form.books || 0);
-    const amount = Number(form.amount || 0);
-
-    if (
-      !Number.isInteger(books) ||
-      books < 0 ||
-      !Number.isFinite(amount) ||
-      amount < 0
-    ) {
-      setError("Please enter valid donation amounts.");
-      return;
-    }
-
-    if (books === 0 && amount === 0) {
-      setError(
-        "Please enter at least one book or a dollar amount."
-      );
-      return;
-    }
-
-    if (
-      form.districtId === "Other" &&
-      !form.otherDistrict.trim()
-    ) {
-      setError("Please specify your district or affiliation.");
-      return;
-    }
-
-    const donation = {
-      ...form,
-      email: form.email.trim(),
-      name: form.name.trim(),
-      otherDistrict:
-        form.districtId === "Other"
-          ? form.otherDistrict.trim()
-          : "",
-      books,
-      amount,
-      id: crypto.randomUUID(),
-      date: new Date().toISOString(),
-    };
-
-    onSubmit(donation);
-    handleClose();
-  }
+}
 
   return (
     <Dialog
@@ -120,7 +146,13 @@ function DonationDialog({ open, onClose, onSubmit }) {
       fullWidth
       maxWidth="sm"
       fullScreen={fullScreen}
+    disableEscapeKeyDown={submitting}
       aria-labelledby="donation-dialog-title"
+      slotProps={{
+    transition: {
+      onExited,
+    },
+  }}
     >
       <Box component="form" onSubmit={handleSubmit}>
         <DialogTitle
@@ -139,7 +171,7 @@ function DonationDialog({ open, onClose, onSubmit }) {
             top: 12,
           }}
         >
-          <CloseIcon />
+          <CloseIcon disabled={submitting} />
         </IconButton>
 
         <DialogContent dividers>
@@ -161,6 +193,7 @@ function DonationDialog({ open, onClose, onSubmit }) {
               onChange={handleChange}
               autoFocus
               required
+              disabled={submitting}
             />
 
             <TextField
@@ -169,6 +202,7 @@ function DonationDialog({ open, onClose, onSubmit }) {
               autoComplete="name"
               value={form.name}
               onChange={handleChange}
+              disabled={submitting}
             />
 
             <TextField
@@ -178,6 +212,7 @@ function DonationDialog({ open, onClose, onSubmit }) {
               value={form.districtId}
               onChange={handleChange}
               required
+              disabled={submitting}
             >
               {districts.map((district) => (
                 <MenuItem
@@ -196,6 +231,7 @@ function DonationDialog({ open, onClose, onSubmit }) {
                 value={form.otherDistrict}
                 onChange={handleChange}
                 required
+                disabled={submitting}
               />
             )}
 
@@ -206,6 +242,7 @@ function DonationDialog({ open, onClose, onSubmit }) {
               value={form.avenueId}
               onChange={handleChange}
               required
+              disabled={submitting}
             >
               {avenues.map((avenue) => (
                 <MenuItem
@@ -240,6 +277,7 @@ function DonationDialog({ open, onClose, onSubmit }) {
                     step: 1,
                   },
                 }}
+                disabled={submitting}
               />
 
               <TextField
@@ -254,6 +292,7 @@ function DonationDialog({ open, onClose, onSubmit }) {
                     step: 0.01,
                   },
                 }}
+                disabled={submitting}
               />
             </Box>
 
@@ -269,6 +308,7 @@ function DonationDialog({ open, onClose, onSubmit }) {
               multiline
               rows={3}
               placeholder="Share any additional details."
+              disabled={submitting}
             />
 
             <Typography variant="body2" color="text.secondary">
@@ -279,14 +319,31 @@ function DonationDialog({ open, onClose, onSubmit }) {
         </DialogContent>
 
         <DialogActions sx={{ p: 3 }}>
-          <Button onClick={handleClose}>
-            Cancel
-          </Button>
+  <Button
+    onClick={handleClose}
+    disabled={submitting}
+  >
+    Cancel
+  </Button>
 
-          <Button type="submit" variant="contained">
-            Submit Donation
-          </Button>
-        </DialogActions>
+  <Button
+    type="submit"
+    variant="contained"
+    disabled={submitting}
+    startIcon={
+      submitting ? (
+        <CircularProgress
+          size={18}
+          color="inherit"
+        />
+      ) : null
+    }
+  >
+    {submitting
+      ? "Submitting..."
+      : "Submit Donation"}
+  </Button>
+</DialogActions>
       </Box>
     </Dialog>
   );

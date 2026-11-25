@@ -9,7 +9,7 @@ import {
 import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
 import heroImage from "../assets/hero-books.jpg";
 
-function Hero({ onDonate }) {
+function Hero({ onDonate, donationDisabled }) {
   return (
     <Box
       component="section"
@@ -76,6 +76,7 @@ function Hero({ onDonate }) {
                 size="large"
                 startIcon={<AutoStoriesOutlinedIcon />}
                 onClick={onDonate}
+                disabled={donationDisabled}
               >
                 Log Book Donations
               </Button>
